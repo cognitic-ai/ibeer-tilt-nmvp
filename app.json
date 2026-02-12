@@ -15,7 +15,8 @@
       "expo-font",
       "expo-image",
       "expo-router",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@bacons/apple-colors"
     ],
     "name": "iBeer Tilt"
   }
