@@ -22,8 +22,10 @@ const FOAM_SHADOW = "#E8D9B8";
 const GLASS_BORDER = "rgba(255,255,255,0.3)";
 const GLASS_HIGHLIGHT = "rgba(255,255,255,0.15)";
 
-const BUBBLE_COUNT = 20;
-const FOAM_BLOB_COUNT = 8;
+const BUBBLE_COUNT = 25;
+const FOAM_BLOB_COUNT = 10;
+
+const isWeb = process.env.EXPO_OS === "web";
 
 function Bubble({
   index,
@@ -50,7 +52,7 @@ function Bubble({
       withRepeat(
         withSequence(
           withTiming(0, { duration: 0 }),
-          withTiming(-glassHeight * 0.6, {
+          withTiming(-glassHeight * 0.7, {
             duration,
             easing: Easing.out(Easing.quad),
           }),
@@ -101,9 +103,9 @@ function FoamBlob({
   tiltX: Animated.SharedValue<number>;
   beerLevel: Animated.SharedValue<number>;
 }) {
-  const baseSize = 25 + Math.random() * 40;
+  const baseSize = 30 + Math.random() * 45;
   const baseLeft = (index / FOAM_BLOB_COUNT) * 100 - 10 + Math.random() * 20;
-  const yOffset = Math.random() * 15;
+  const yOffset = Math.random() * 18;
 
   const style = useAnimatedStyle(() => {
     const foamScale = interpolate(beerLevel.value, [0, 20, 100], [0, 0.5, 1]);
@@ -129,8 +131,9 @@ export default function BeerGlass({
   onDrink?: (level: number) => void;
 }) {
   const { width, height } = useWindowDimensions();
-  const glassWidth = Math.min(width * 0.7, 280);
-  const glassHeight = Math.min(height * 0.55, 480);
+  // Fullscreen: glass fills most of the screen
+  const glassWidth = width;
+  const glassHeight = height;
 
   const beerLevel = useSharedValue(100);
   const tiltX = useSharedValue(0);
@@ -140,6 +143,7 @@ export default function BeerGlass({
   const lastHaptic = useRef(0);
 
   const triggerHaptic = useCallback(() => {
+    if (isWeb) return;
     const now = Date.now();
     if (now - lastHaptic.current > 300) {
       lastHaptic.current = now;
@@ -148,14 +152,16 @@ export default function BeerGlass({
   }, []);
 
   useEffect(() => {
+    if (isWeb) return;
+
     Accelerometer.setUpdateInterval(50);
 
-    const sub = Accelerometer.addListener(({ x, y, z }) => {
+    const sub = Accelerometer.addListener(({ x, y }) => {
       // Tilt affects the beer surface angle
       tiltX.value = withSpring(x * 15, { damping: 8, stiffness: 120 });
       surfaceTilt.value = withSpring(x * 12, { damping: 6, stiffness: 100 });
 
-      // Detect "drinking" — phone tilted upward significantly (y > 0.5 means bottom of phone is up)
+      // Detect "drinking" — phone tilted upward significantly
       const drinkThreshold = 0.45;
       if (y > drinkThreshold && beerLevel.value > 0) {
         if (!isDrinking.current) {
@@ -191,12 +197,16 @@ export default function BeerGlass({
   // Beer fill style
   const beerStyle = useAnimatedStyle(() => ({
     height: `${beerLevel.value}%`,
-    transform: [{ rotateZ: `${surfaceTilt.value}deg` }, { scaleX: 1.15 }],
+    transform: [{ rotateZ: `${surfaceTilt.value}deg` }, { scaleX: 1.1 }],
   }));
 
   // Foam style
   const foamStyle = useAnimatedStyle(() => {
-    const foamHeight = interpolate(beerLevel.value, [0, 10, 100], [0, 15, 40]);
+    const foamHeight = interpolate(
+      beerLevel.value,
+      [0, 10, 100],
+      [0, 20, 50]
+    );
     return {
       height: foamHeight,
       transform: [{ rotateZ: `${surfaceTilt.value * 0.5}deg` }],
@@ -214,37 +224,34 @@ export default function BeerGlass({
         glassStyle,
       ]}
     >
-      {/* Glass body */}
+      {/* Glass body — no border, edge-to-edge */}
       <View
         style={{
           flex: 1,
-          borderRadius: 8,
-          borderCurve: "continuous",
-          borderWidth: 2,
-          borderColor: GLASS_BORDER,
-          backgroundColor: "rgba(255,255,255,0.06)",
+          backgroundColor: "rgba(255,255,255,0.04)",
           overflow: "hidden",
         }}
       >
-        {/* Glass highlight */}
+        {/* Glass highlight — left */}
         <View
           style={{
             position: "absolute",
             top: 0,
-            left: 8,
-            width: 20,
+            left: 12,
+            width: 24,
             height: "100%",
             backgroundColor: GLASS_HIGHLIGHT,
-            borderRadius: 10,
+            borderRadius: 12,
             zIndex: 10,
           }}
         />
+        {/* Glass highlight — right */}
         <View
           style={{
             position: "absolute",
             top: 0,
-            right: 12,
-            width: 8,
+            right: 16,
+            width: 10,
             height: "100%",
             backgroundColor: "rgba(255,255,255,0.08)",
             borderRadius: 10,
@@ -257,8 +264,8 @@ export default function BeerGlass({
           style={{
             position: "absolute",
             bottom: 0,
-            left: -10,
-            right: -10,
+            left: -15,
+            right: -15,
             height: "100%",
             justifyContent: "flex-end",
           }}
@@ -268,13 +275,11 @@ export default function BeerGlass({
               {
                 width: "100%",
                 overflow: "hidden",
-                borderBottomLeftRadius: 6,
-                borderBottomRightRadius: 6,
               },
               beerStyle,
             ]}
           >
-            {/* Beer gradient effect */}
+            {/* Beer body */}
             <View
               style={{
                 flex: 1,
@@ -301,8 +306,8 @@ export default function BeerGlass({
                 {
                   position: "absolute",
                   top: -2,
-                  left: -5,
-                  right: -5,
+                  left: -10,
+                  right: -10,
                   overflow: "visible",
                 },
                 foamStyle,
@@ -315,9 +320,9 @@ export default function BeerGlass({
                   left: 0,
                   right: 0,
                   top: 0,
-                  bottom: -5,
+                  bottom: -8,
                   backgroundColor: FOAM_SHADOW,
-                  borderRadius: 20,
+                  borderRadius: 0,
                 }}
               />
               {/* Foam blobs */}
@@ -343,25 +348,6 @@ export default function BeerGlass({
           />
         ))}
       </View>
-
-      {/* Glass base */}
-      <View
-        style={{
-          width: glassWidth * 0.5,
-          height: 8,
-          backgroundColor: "rgba(255,255,255,0.2)",
-          borderRadius: 4,
-          borderCurve: "continuous",
-          alignSelf: "center",
-          marginTop: 2,
-        }}
-      />
     </Animated.View>
   );
-}
-
-export function useResetBeer() {
-  // Allows parent to trigger a refill
-  const refillRef = useRef<(() => void) | null>(null);
-  return refillRef;
 }
