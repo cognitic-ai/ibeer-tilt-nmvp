@@ -18,6 +18,7 @@
       "expo-web-browser",
       "@bacons/apple-colors"
     ],
-    "name": "iBeer Tilt"
+    "name": "iBeer Tilt",
+    "owner": "mokosdavid"
   }
 }
